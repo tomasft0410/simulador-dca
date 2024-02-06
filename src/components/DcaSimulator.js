@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { Line } from "react-chartjs-2";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { getHistoricalPrices } from "../services/budaApi";
@@ -7,60 +6,91 @@ import { getHistoricalPrices } from "../services/budaApi";
 const DcaSimulator = () => {
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
-  const [data, setData] = useState({ labels: [], datasets: [] });
-  const [formattedTrades, setFormattedTrades] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [monthlyTrades, setMonthlyTrades] = useState([]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+
       const pair = "btc-clp";
       const currentDate = new Date();
-      const startTimestamp = currentDate.getTime() - 60 * 60 * 24 * 7;
-      const endTimestamp = currentDate.getTime();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth();
 
-      try {
-        const historicalTrades = await getHistoricalPrices(
-          pair,
-          startTimestamp,
-          endTimestamp
+      const monthlyTradesList = [];
+
+      for (let i = 0; i < 12; i++) {
+        // Restar i meses al mes actual
+        const targetDate = new Date(
+          currentYear,
+          currentMonth - i,
+          1,
+          12,
+          0,
+          0,
+          0
         );
+        const startTimestamp = targetDate.getTime();
+        const endTimestamp = startTimestamp - 60 * 60 * 24 * 7;
 
-        const labels = historicalTrades.map(
-          (entry) => new Date(entry[0] * 1000)
-        );
-        const datasets = [
-          {
-            label: "Precio de cierre",
-            data: historicalTrades.map((entry) => parseFloat(entry[1])),
-          },
-        ];
+        try {
+          const historicalTrades = await getHistoricalPrices(
+            pair,
+            startTimestamp,
+            endTimestamp
+          );
 
-        setData({ labels, datasets });
+          if (historicalTrades.length > 0) {
+            const firstBuyTrade = historicalTrades.find(
+              (trade) => trade[3] === "buy"
+            );
 
-        const formattedTrades = historicalTrades.map((entry) => {
-          const timestamp = new Date(parseFloat(entry[0]));
-          const fechaFormateada = `${("0" + timestamp.getDate()).slice(-2)}/${("0" + (timestamp.getMonth() + 1)).slice(-2)}/${timestamp.getFullYear()} - ${("0" + timestamp.getHours()).slice(-2)}:${("0" + timestamp.getMinutes()).slice(-2)}:${("0" + timestamp.getSeconds()).slice(-2)}`;
+            if (firstBuyTrade) {
+              const timestamp = new Date(parseFloat(firstBuyTrade[0]));
+              const timestamp_formatted = `${("0" + timestamp.getDate()).slice(
+                -2
+              )}/${("0" + (timestamp.getMonth() + 1)).slice(
+                -2
+              )}/${timestamp.getFullYear()} - ${(
+                "0" + timestamp.getHours()
+              ).slice(-2)}:${("0" + timestamp.getMinutes()).slice(-2)}:${(
+                "0" + timestamp.getSeconds()
+              ).slice(-2)}`;
 
-          const precio = parseFloat(entry[2]);
-          const precioFormateado = precio.toLocaleString("es-CL", {
-            style: "currency",
-            currency: "CLP",
-          });
-        
-          return {
-            timestamp: fechaFormateada,
-            volume: parseFloat(entry[1]),
-            price: precioFormateado,
-            type: entry[3],
-            transactionId: entry[4],
-          };
-        });
-        
+              const price = parseFloat(firstBuyTrade[2]);
+              const price_formatted = price.toLocaleString("es-CL", {
+                style: "currency",
+                currency: "CLP",
+              });
 
-        console.log("Formatted Trades:", formattedTrades);
-        setFormattedTrades(formattedTrades);
-      } catch (error) {
-        console.error("Error fetching historical prices:", error);
+              const firstBuyTradeOfMonth = {
+                timestamp: timestamp_formatted,
+                volume: parseFloat(firstBuyTrade[1]),
+                price: price_formatted,
+                type: firstBuyTrade[3],
+                transactionId: firstBuyTrade[4],
+              };
+
+              // Agregar a la lista de trades mensuales
+              monthlyTradesList.push(firstBuyTradeOfMonth);
+
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching historical prices:", error);
+        }
       }
+
+      // Ordenar la lista por fecha ascendente
+      monthlyTradesList.sort((a, b) => a.timestamp - b.timestamp);
+      setLoading(false);
+
+      // Actualizar el estado con la lista de trades mensuales
+      setMonthlyTrades(monthlyTradesList);
+      console.log("Monthly Trades:", monthlyTradesList);
     };
 
     fetchData();
@@ -71,12 +101,12 @@ const DcaSimulator = () => {
     padding: "8px",
     backgroundColor: "#f2f2f2",
   };
-  
+
   const tableRowStyle = {
     border: "1px solid #dddddd",
     padding: "8px",
   };
-  
+
   const tableCellStyle = {
     border: "1px solid #dddddd",
     padding: "8px",
@@ -96,7 +126,9 @@ const DcaSimulator = () => {
         <label>Fin:</label>
         <DatePicker selected={endDate} onChange={(date) => setEndDate(date)} />
       </div>
-      {data.labels.length > 0 && (
+      {loading && <p>Loading...</p>}
+      {error && <p>{error}</p>}
+      {monthlyTrades.length > 0 && !loading && (
         <>
           <h2 style={{ textAlign: "center" }}>Tabla de Transacciones</h2>
           <table
@@ -110,21 +142,15 @@ const DcaSimulator = () => {
           >
             <thead style={{ backgroundColor: "#f2f2f2" }}>
               <tr>
-                <th style={tableHeaderStyle}>Timestamp</th>
+                <th style={tableHeaderStyle}>Fecha</th>
                 <th style={tableHeaderStyle}>Precio</th>
-                <th style={tableHeaderStyle}>Volumen</th>
-                <th style={tableHeaderStyle}>Tipo</th>
-                <th style={tableHeaderStyle}>ID de Transacción</th>
               </tr>
             </thead>
             <tbody>
-              {formattedTrades.map((trade) => (
+              {monthlyTrades.map((trade) => (
                 <tr key={trade.transactionId} style={tableRowStyle}>
                   <td style={tableCellStyle}>{trade.timestamp.toString()}</td>
                   <td style={tableCellStyle}>{trade.price}</td>
-                  <td style={tableCellStyle}>{trade.volume}</td>
-                  <td style={tableCellStyle}>{trade.type}</td>
-                  <td style={tableCellStyle}>{trade.transactionId}</td>
                 </tr>
               ))}
             </tbody>
