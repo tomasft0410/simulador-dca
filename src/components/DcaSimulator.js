@@ -3,6 +3,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { Line } from "react-chartjs-2";
 import { getHistoricalPrices } from "../services/budaApi";
+import styled from "styled-components";
 import {
   Chart,
   CategoryScale,
@@ -20,10 +21,15 @@ Chart.register(
 );
 
 const DcaSimulator = () => {
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
+  const defaultStartDate = new Date(); // Define la fecha de inicio predeterminada
+  const defaultEndDate = new Date(); // Define la fecha de fin predeterminada
+  defaultStartDate.setFullYear(defaultStartDate.getFullYear() - 2); // Establece la fecha de fin predeterminada como un año después
+
+  const [startDate, setStartDate] = useState(defaultStartDate);
+  const [endDate, setEndDate] = useState(defaultEndDate);
+
   const [loading, setLoading] = useState(false);
-  const [investmentAmount, setInvestmentAmount] = useState(0);
+  const [investmentAmount, setInvestmentAmount] = useState(1000000);
   const [monthlyTrades, setMonthlyTrades] = useState([]);
   const [error, setError] = useState(null);
 
@@ -34,72 +40,72 @@ const DcaSimulator = () => {
 
       const pair = "btc-clp";
       const currentDate = new Date(endDate);
+      const startDateObj = new Date(startDate);
       const currentYear = currentDate.getFullYear();
+      const startYear = startDateObj.getFullYear();
       const currentMonth = currentDate.getMonth();
+      const startMonth = startDateObj.getMonth();
 
       const monthlyTradesList = [];
 
-      for (let i = 0; i < 12; i++) {
-        const targetDate = new Date(
-          currentYear,
-          currentMonth - i,
-          1,
-          12,
-          0,
-          0,
-          0
-        );
-        const startTimestamp = targetDate.getTime();
-        const endTimestamp = startTimestamp - 60 * 60 * 24 * 7;
+      for (let y = startYear; y <= currentYear; y++) {
+        const startMonthLoop = y === startYear ? startMonth : 0;
+        const endMonthLoop = y === currentYear ? currentMonth : 11;
 
-        try {
-          const historicalTrades = await getHistoricalPrices(
-            pair,
-            startTimestamp,
-            endTimestamp
-          );
+        for (let m = startMonthLoop; m <= endMonthLoop; m++) {
+          const targetDate = new Date(y, m, 1, 12, 0, 0, 0);
+          const startTimestamp = targetDate.getTime();
+          const endTimestamp = startTimestamp - 60 * 60 * 24 * 7;
 
-          if (historicalTrades.length > 0) {
-            const firstBuyTrade = historicalTrades.find(
-              (trade) => trade[3] === "buy"
+          try {
+            const historicalTrades = await getHistoricalPrices(
+              pair,
+              startTimestamp,
+              endTimestamp
             );
 
-            if (firstBuyTrade) {
-              const timestamp = new Date(parseFloat(firstBuyTrade[0]));
-              const timestamp_formatted = `${("0" + timestamp.getDate()).slice(
-                -2
-              )}/${("0" + (timestamp.getMonth() + 1)).slice(
-                -2
-              )}/${timestamp.getFullYear()} - ${(
-                "0" + timestamp.getHours()
-              ).slice(-2)}:${("0" + timestamp.getMinutes()).slice(-2)}:${(
-                "0" + timestamp.getSeconds()
-              ).slice(-2)}`;
+            if (historicalTrades.length > 0) {
+              const firstBuyTrade = historicalTrades.find(
+                (trade) => trade[3] === "buy"
+              );
 
-              const price = parseFloat(firstBuyTrade[2]);
-              const price_formatted = price.toLocaleString("es-CL", {
-                style: "currency",
-                currency: "CLP",
-              });
+              if (firstBuyTrade) {
+                const timestamp = new Date(parseFloat(firstBuyTrade[0]));
+                const timestamp_formatted = `${(
+                  "0" + timestamp.getDate()
+                ).slice(-2)}/${("0" + (timestamp.getMonth() + 1)).slice(
+                  -2
+                )}/${timestamp.getFullYear()} - ${(
+                  "0" + timestamp.getHours()
+                ).slice(-2)}:${("0" + timestamp.getMinutes()).slice(-2)}:${(
+                  "0" + timestamp.getSeconds()
+                ).slice(-2)}`;
 
-              const firstBuyTradeOfMonth = {
-                timestamp: timestamp_formatted,
-                volume: parseFloat(firstBuyTrade[1]),
-                price: firstBuyTrade[2],
-                type: firstBuyTrade[3],
-                transactionId: firstBuyTrade[4],
-              };
+                const price = parseFloat(firstBuyTrade[2]);
+                const price_formatted = price.toLocaleString("es-CL", {
+                  style: "currency",
+                  currency: "CLP",
+                });
 
-              monthlyTradesList.push(firstBuyTradeOfMonth);
+                const firstBuyTradeOfMonth = {
+                  timestamp: timestamp_formatted,
+                  volume: parseFloat(firstBuyTrade[1]),
+                  price: firstBuyTrade[2],
+                  type: firstBuyTrade[3],
+                  transactionId: firstBuyTrade[4],
+                };
+
+                monthlyTradesList.push(firstBuyTradeOfMonth);
+              }
             }
+          } catch (error) {
+            console.error("Error fetching historical prices:", error);
           }
-        } catch (error) {
-          console.error("Error fetching historical prices:", error);
         }
       }
 
       monthlyTradesList.sort((b, a) => b.timestamp - a.timestamp);
-      monthlyTradesList.reverse();
+      // monthlyTradesList.reverse();
       setLoading(false);
       setMonthlyTrades(monthlyTradesList);
     };
@@ -109,32 +115,28 @@ const DcaSimulator = () => {
 
   const handleStartDateChange = (date) => {
     setStartDate(date);
-    const newEndDate = new Date(date);
-    newEndDate.setFullYear(newEndDate.getFullYear() + 1);
-    setEndDate(newEndDate);
   };
 
   const handleEndDateChange = (date) => {
     setEndDate(date);
-    const newStartDate = new Date(date);
-    newStartDate.setFullYear(newStartDate.getFullYear() - 1);
-    setStartDate(newStartDate);
   };
 
   const calculateMonthlyGains = () => {
     let totalInvestment = 0;
     const gains = [];
 
-    monthlyTrades.forEach((trade) => {
-      totalInvestment += investmentAmount;
-
+    monthlyTrades.forEach((trade, index) => {
       const currentPrice = parseFloat(trade.price.replace(/[^\d.-]/g, ""));
-      const currentInvestment = investmentAmount * trade.volume;
+      const currentInvestment = investmentAmount;
+
+      totalInvestment += currentInvestment;
+
+      // Calcular currentGain usando la fórmula proporcionada
       const currentGain =
-        currentInvestment *
-        (currentPrice /
-          parseFloat(monthlyTrades[0].price.replace(/[^\d.-]/g, "")) -
-          1);
+        totalInvestment *
+        ((currentPrice -
+          parseFloat(monthlyTrades[0].price.replace(/[^\d.-]/g, ""))) /
+          parseFloat(monthlyTrades[0].price.replace(/[^\d.-]/g, "")));
 
       gains.push({
         timestamp: trade.timestamp,
@@ -142,6 +144,7 @@ const DcaSimulator = () => {
         gain: currentGain,
         gainPercentage: (currentGain / totalInvestment) * 100,
         originalPrice: parseFloat(trade.price.replace(/[^\d.-]/g, "")),
+        accumulatedInvestment: totalInvestment, // Nuevo campo para monto invertido acumulado
       });
     });
 
@@ -155,7 +158,7 @@ const DcaSimulator = () => {
     labels: monthlyGains.map((gain) => gain.timestamp),
     datasets: [
       {
-        label: "Precio Original",
+        label: "Bitcoin Precio",
         data: monthlyTrades.map((trade) =>
           parseFloat(trade.price.replace(/[^\d.-]/g, ""))
         ),
@@ -164,10 +167,10 @@ const DcaSimulator = () => {
         lineTension: 0.1,
       },
       {
-        label: "Ganancia",
+        label: "Ganancia Acumulada",
         data: monthlyGains.map((gain) => gain.totalInvestment.toFixed(2)),
         fill: false,
-        borderColor: "rgba(255,99,132,1)", // Puedes ajustar el color según tus preferencias
+        borderColor: "rgba(255,99,132,1)",
         lineTension: 0.1,
       },
     ],
@@ -189,51 +192,123 @@ const DcaSimulator = () => {
     padding: "8px",
   };
 
+  const StyledInputContainer = styled.div`
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 20px;
+    justify-content: center;
+  `;
+
+  const StyledInputLabel = styled.label`
+    margin-right: 20px;
+    color: #333; // Color del texto
+  `;
+
+  const StyledInput = styled.input`
+    type: number;
+    padding: 8px;
+    border: 1px solid #ccc; // Borde del input
+    border-radius: 4px; // Bordes redondeados
+    outline: none; // Elimina el contorno al hacer clic
+    transition: border 0.3s; // Animación de transición para el borde
+
+    &:focus {
+      border-color: #007bff; // Cambia el color del borde al hacer clic
+    }
+  `;
+
+  const totalInvestmentAmount =
+    monthlyGains.length > 0 ? monthlyGains[0].accumulatedInvestment : 0;
+  const currentPortfolioValue =
+    monthlyGains.length > 0
+      ? monthlyGains[monthlyGains.length - 1].totalInvestment
+      : 0;
+  const percentageDifference =
+    ((currentPortfolioValue - totalInvestmentAmount) / totalInvestmentAmount) *
+    100;
+
   return (
     <div>
       <h1 style={{ textAlign: "center", marginBottom: "20px" }}>
         DCA Simulator
       </h1>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          marginBottom: "20px",
-        }}
-      >
-        <div style={{ marginRight: "20px" }}>
-          <label>Inicio:</label>
+      <StyledInputContainer>
+        <div>
+          <StyledInputLabel>Inicio:</StyledInputLabel>
           <DatePicker selected={startDate} onChange={handleStartDateChange} />
         </div>
-        <div style={{ marginRight: "20px" }}>
-          <label>Fin:</label>
+        <div>
+          <StyledInputLabel>Fin:</StyledInputLabel>
           <DatePicker selected={endDate} onChange={handleEndDateChange} />
         </div>
         <div>
-          <label>Monto de Inversión Mensual (CLP):</label>
-          <input
+          <StyledInputLabel>Monto de Inversión Mensual (CLP):</StyledInputLabel>
+          <StyledInput
             type="number"
             value={investmentAmount}
             onChange={(e) => setInvestmentAmount(parseInt(e.target.value))}
           />
         </div>
-      </div>
+      </StyledInputContainer>
       {loading && <p style={{ textAlign: "center" }}>Cargando...</p>}
       {error && <p style={{ textAlign: "center", color: "red" }}>{error}</p>}
       {monthlyTrades.length > 0 && !loading && (
         <>
           <div
             style={{
+              backgroundColor: "rgb(242, 242, 242)",
+              padding: "5px",
+              borderRadius: "5px",
+              width: "80%",
+              margin: "0% 10%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center"
+            }}
+          >
+            <p>
+              <strong>Inversión Inicial:</strong>{" "}
+              {totalInvestmentAmount.toLocaleString("es-CL", {
+                style: "currency",
+                currency: "CLP",
+              })}
+            </p>
+            <p>
+              <strong>Valor Actual del Portafolio:</strong>{" "}
+              {currentPortfolioValue.toLocaleString("es-CL", {
+                style: "currency",
+                currency: "CLP",
+              })}
+            </p>
+            <p>
+              <strong>Diferencia:</strong> {percentageDifference.toFixed(2)}%
+            </p>
+          </div>
+          <div
+            style={{
               textAlign: "center",
-              margin: "20px",
+              margin: "20px 10%",
               border: "1px solid #ddd",
               padding: "10px",
+              position: "relative",
             }}
           >
             <h2 style={{ marginBottom: "10px" }}>Gráfico de Ganancias</h2>
             <Line data={combinedChartData} />
-            <p style={{ marginTop: "10px" }}></p>
+            <p style={{ marginTop: "10px" }}>
+              <strong style={{ color: "rgba(75,192,192,1)" }}>
+                Bitcoin Precio:
+              </strong>{" "}
+              Precio de Bitcoin en CLP
+              <br />
+              <strong style={{ color: "rgba(255,99,132,1)" }}>
+                Ganancia Acumulada:
+              </strong>{" "}
+              Monto total invertido más ganancias acumuladas
+            </p>
           </div>
+
           <h2
             style={{
               textAlign: "center",
@@ -246,8 +321,8 @@ const DcaSimulator = () => {
           <table
             style={{
               borderCollapse: "collapse",
-              width: "80%", // Cambia el porcentaje según tus necesidades
-              margin: "20px 10%", // Centra la tabla con 'auto' y agrega márgenes arriba y abajo
+              width: "80%",
+              margin: "20px 10%",
               fontFamily: "Arial, sans-serif",
               border: "1px solid #dddddd",
             }}
@@ -256,7 +331,7 @@ const DcaSimulator = () => {
               <tr>
                 <th style={tableHeaderStyle}>Fecha</th>
                 <th style={tableHeaderStyle}>Bitcoin Precio</th>
-                <th style={tableHeaderStyle}>Monto Invertido</th>
+                <th style={tableHeaderStyle}>Monto Invertido Acumulado</th>{" "}
                 <th style={tableHeaderStyle}>Valor del Portafolio</th>
                 <th style={tableHeaderStyle}>Cambio Σ</th>
                 <th style={tableHeaderStyle}>Cambio %</th>
@@ -267,13 +342,29 @@ const DcaSimulator = () => {
                 <tr key={gain.timestamp} style={tableRowStyle}>
                   <td style={tableCellStyle}>{gain.timestamp}</td>
                   <td style={tableCellStyle}>
-                    {gain.originalPrice.toFixed(2)}
+                    {gain.originalPrice.toLocaleString("es-CL", {
+                      style: "currency",
+                      currency: "CLP",
+                    })}
                   </td>
-                  <td style={tableCellStyle}>{investmentAmount.toFixed(2)}</td>
                   <td style={tableCellStyle}>
-                    {gain.totalInvestment.toFixed(2)}
+                    {gain.accumulatedInvestment.toLocaleString("es-CL", {
+                      style: "currency",
+                      currency: "CLP",
+                    })}
                   </td>
-                  <td style={tableCellStyle}>{gain.gain.toFixed(2)}</td>
+                  <td style={tableCellStyle}>
+                    {gain.totalInvestment.toLocaleString("es-CL", {
+                      style: "currency",
+                      currency: "CLP",
+                    })}
+                  </td>
+                  <td style={tableCellStyle}>
+                    {gain.gain.toLocaleString("es-CL", {
+                      style: "currency",
+                      currency: "CLP",
+                    })}
+                  </td>
                   <td style={tableCellStyle}>
                     {gain.gainPercentage.toFixed(2)}%
                   </td>
