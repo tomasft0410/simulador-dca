@@ -1,0 +1,46 @@
+[debug] [2024-02-06T17:55:43.197Z] ----------------------------------------------------------------------
+[debug] [2024-02-06T17:55:43.199Z] Command:       /opt/homebrew/Cellar/node/21.5.0/bin/node /opt/homebrew/bin/firebase init
+[debug] [2024-02-06T17:55:43.199Z] CLI Version:   13.1.0
+[debug] [2024-02-06T17:55:43.199Z] Platform:      darwin
+[debug] [2024-02-06T17:55:43.199Z] Node Version:  v21.5.0
+[debug] [2024-02-06T17:55:43.199Z] Time:          Tue Feb 06 2024 13:55:43 GMT-0400 (GMT-04:00)
+[debug] [2024-02-06T17:55:43.199Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-02-06T17:55:43.203Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-02-06T17:55:43.203Z] > authorizing via signed-in user (tomasfdezt@gmail.com)
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  /Users/tomas.fernandez/Desktop/simulador-dca
+
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] but for now we'll just set up a default project.
+[info] 
+[info] i  If you want to create a project in a Google Cloud organization or folder, please use "firebase projects:create" instead, and return to this command when you've created the project. 
+[debug] [2024-02-06T17:56:03.936Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects [none]
+[debug] [2024-02-06T17:56:03.937Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects {"projectId":"dcasimulator","name":"dcasimulator"}
+[debug] [2024-02-06T17:56:05.434Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects 200
+[debug] [2024-02-06T17:56:05.435Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects {"name":"operations/cp.5230733259335256456"}
+[debug] [2024-02-06T17:56:05.436Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/operations/cp.5230733259335256456 [none]
+[debug] [2024-02-06T17:56:06.572Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/operations/cp.5230733259335256456 200
+[debug] [2024-02-06T17:56:06.574Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/operations/cp.5230733259335256456 {"name":"operations/cp.5230733259335256456","metadata":{"@type":"type.googleapis.com/google.cloudresourcemanager.v1.ProjectCreationStatus","ready":true},"done":true,"error":{"code":9,"message":"Callers must accept Terms of Service","details":[{"@type":"type.googleapis.com/google.rpc.PreconditionFailure","violations":[{"type":"TOS","subject":"cloud","description":"Callers must accept Terms of Service"}]}]}}
+[debug] [2024-02-06T17:56:06.622Z] FirebaseError: Callers must accept Terms of Service
+    at OperationPoller.poll (/opt/homebrew/lib/node_modules/firebase-tools/lib/operation-poller.js:24:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async createCloudProject (/opt/homebrew/lib/node_modules/firebase-tools/lib/management/projects.js:186:29)
+    at async createFirebaseProjectAndLog (/opt/homebrew/lib/node_modules/firebase-tools/lib/management/projects.js:45:9)
+    at async promptAndCreateNewProject (/opt/homebrew/lib/node_modules/firebase-tools/lib/init/features/project.js:32:12)
+    at async doSetup (/opt/homebrew/lib/node_modules/firebase-tools/lib/init/features/project.js:88:27)
+    at async init (/opt/homebrew/lib/node_modules/firebase-tools/lib/init/index.js:37:9)
+[error] 
+[error] Error: Failed to create project. See firebase-debug.log for more info.

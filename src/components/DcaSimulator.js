@@ -4,6 +4,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { Line } from "react-chartjs-2";
 import { getHistoricalPrices } from "../services/budaApi";
 import styled from "styled-components";
+
 import {
   Chart,
   CategoryScale,
@@ -75,17 +76,8 @@ const DcaSimulator = () => {
                   "0" + timestamp.getDate()
                 ).slice(-2)}/${("0" + (timestamp.getMonth() + 1)).slice(
                   -2
-                )}/${timestamp.getFullYear()} - ${(
-                  "0" + timestamp.getHours()
-                ).slice(-2)}:${("0" + timestamp.getMinutes()).slice(-2)}:${(
-                  "0" + timestamp.getSeconds()
-                ).slice(-2)}`;
-
-                const price = parseFloat(firstBuyTrade[2]);
-                const price_formatted = price.toLocaleString("es-CL", {
-                  style: "currency",
-                  currency: "CLP",
-                });
+                )}/${timestamp.getFullYear()}
+                `;
 
                 const firstBuyTradeOfMonth = {
                   timestamp: timestamp_formatted,
@@ -176,16 +168,36 @@ const DcaSimulator = () => {
     ],
   };
 
+  const tableStyle = {
+    borderCollapse: "collapse",
+    width: "80%",
+    maxWidth: "100%", // Establecer un ancho máximo deseado
+    margin: "20px auto", // Centrar la tabla
+    fontFamily: "Arial, sans-serif",
+    border: "1px solid #dddddd",
+    borderRadius: "5px",
+    overflowX: "auto", // Agregar desplazamiento horizontal
+    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)", // Agregar sombra para resaltar la tabla
+  };
+
   const tableHeaderStyle = {
     border: "1px solid #dddddd",
     padding: "8px",
     backgroundColor: "#f2f2f2",
+    borderRadius: "5px", // Bordes redondeados
   };
 
   const tableRowStyle = {
     border: "1px solid #dddddd",
     padding: "8px",
+    borderRadius: "5px", // Bordes redondeados
   };
+
+  const getCellStyle = (gain) => ({
+    border: "1px solid #dddddd",
+    padding: "8px",
+    color: gain.gain >= 0 ? "green" : "red",
+  });
 
   const tableCellStyle = {
     border: "1px solid #dddddd",
@@ -198,6 +210,11 @@ const DcaSimulator = () => {
     align-items: center;
     margin-bottom: 20px;
     justify-content: center;
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      text-align: center;
+    }
   `;
 
   const StyledInputLabel = styled.label`
@@ -209,7 +226,7 @@ const DcaSimulator = () => {
     type: number;
     padding: 8px;
     border: 1px solid #ccc; // Borde del input
-    border-radius: 4px; // Bordes redondeados
+    border-radius: 5px; // Bordes redondeados
     outline: none; // Elimina el contorno al hacer clic
     transition: border 0.3s; // Animación de transición para el borde
 
@@ -218,8 +235,19 @@ const DcaSimulator = () => {
     }
   `;
 
+  const chartContainerStyle = {
+    textAlign: "center",
+    border: "1px solid #ddd",
+    padding: "10px",
+    position: "relative",
+    borderRadius: "5px",
+    margin: "20px 10%",  // Margen predeterminado
+  };
+
   const totalInvestmentAmount =
-    monthlyGains.length > 0 ? monthlyGains[0].accumulatedInvestment : 0;
+    monthlyGains.length > 0
+      ? monthlyGains[monthlyGains.length - 1].accumulatedInvestment
+      : 0;
   const currentPortfolioValue =
     monthlyGains.length > 0
       ? monthlyGains[monthlyGains.length - 1].totalInvestment
@@ -227,6 +255,7 @@ const DcaSimulator = () => {
   const percentageDifference =
     ((currentPortfolioValue - totalInvestmentAmount) / totalInvestmentAmount) *
     100;
+  const totalGains = currentPortfolioValue - totalInvestmentAmount;
 
   return (
     <div>
@@ -258,17 +287,16 @@ const DcaSimulator = () => {
           <div
             style={{
               backgroundColor: "rgb(242, 242, 242)",
-              padding: "5px",
               borderRadius: "5px",
               width: "80%",
               margin: "0% 10%",
               display: "flex",
               flexDirection: "column",
-              alignItems: "center"
+              alignItems: "center",
             }}
           >
             <p>
-              <strong>Inversión Inicial:</strong>{" "}
+              <strong>Inversión Total:</strong>{" "}
               {totalInvestmentAmount.toLocaleString("es-CL", {
                 style: "currency",
                 currency: "CLP",
@@ -283,17 +311,22 @@ const DcaSimulator = () => {
             </p>
             <p>
               <strong>Diferencia:</strong> {percentageDifference.toFixed(2)}%
+              <span
+                style={{ color: percentageDifference > 0 ? "green" : "red" }}
+              >
+                {percentageDifference > 0 ? " (Ganancia)" : " (Pérdida)"}
+              </span>
+              <span
+                style={{ color: percentageDifference > 0 ? "green" : "red" }}
+              >
+                {totalGains.toLocaleString("es-CL", {
+                  style: "currency",
+                  currency: "CLP",
+                })}
+              </span>
             </p>
           </div>
-          <div
-            style={{
-              textAlign: "center",
-              margin: "20px 10%",
-              border: "1px solid #ddd",
-              padding: "10px",
-              position: "relative",
-            }}
-          >
+          <div style={chartContainerStyle}>
             <h2 style={{ marginBottom: "10px" }}>Gráfico de Ganancias</h2>
             <Line data={combinedChartData} />
             <p style={{ marginTop: "10px" }}>
@@ -318,15 +351,7 @@ const DcaSimulator = () => {
           >
             Tabla de Ganancias
           </h2>
-          <table
-            style={{
-              borderCollapse: "collapse",
-              width: "80%",
-              margin: "20px 10%",
-              fontFamily: "Arial, sans-serif",
-              border: "1px solid #dddddd",
-            }}
-          >
+          <table style={tableStyle}>
             <thead style={{ backgroundColor: "#f2f2f2" }}>
               <tr>
                 <th style={tableHeaderStyle}>Fecha</th>
@@ -359,14 +384,16 @@ const DcaSimulator = () => {
                       currency: "CLP",
                     })}
                   </td>
-                  <td style={tableCellStyle}>
+                  <td style={getCellStyle(gain)}>
                     {gain.gain.toLocaleString("es-CL", {
                       style: "currency",
                       currency: "CLP",
                     })}
                   </td>
-                  <td style={tableCellStyle}>
-                    {gain.gainPercentage.toFixed(2)}%
+                  <td style={getCellStyle(gain)}>
+                    {gain.gainPercentage >= 0
+                      ? `+${gain.gainPercentage.toFixed(2)}%`
+                      : `${gain.gainPercentage.toFixed(2)}%`}
                   </td>
                 </tr>
               ))}
